@@ -1,0 +1,10 @@
+{
+  "name": "riscv-mp-simulator",
+  "private": true,
+  "description": "Simulador didático de multiprocessamento: coerência de cache por snooping (MSI, MESI, MOESI)",
+  "repository": "github:CSER-UFT/riscv-mp-simulator",
+  "license": "GPL-3.0",
+  "type": "module",
+  "scripts": { "test": "node --test test/*.test.js", "start": "python3 -m http.server 8000" },
+  "engines": { "node": ">=20" }
+}

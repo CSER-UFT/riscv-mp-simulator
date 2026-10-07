@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador de Multiprocessamento RISC-V</title>
+<style>
+:root { --bg:#eef1f6; --panel:#fff; --ink:#1d2433; --muted:#5d687c; --line:#d8dee8; --accent:#3352c4; --hl:#fff4d4; --focus:#e9a90c;
+  --M:#d1495b; --O:#d9792b; --E:#9a5bc4; --S:#2f9e6e; --I:#b9c3d3; }
+[data-theme=dark] { --bg:#141922; --panel:#1b2230; --ink:#e4e8f0; --muted:#a0aabb; --line:#2e3849; --accent:#8ea2ff; --hl:#3a3320; }
+body { margin:0; font-family:'IBM Plex Sans',system-ui,sans-serif; background:var(--bg); color:var(--ink); }
+header { display:flex; gap:12px; align-items:center; padding:10px 18px; background:var(--panel); border-bottom:1px solid var(--line); }
+header h1 { font-size:17px; margin:0; flex:1; } header h1 b { color:var(--accent); }
+main { display:grid; grid-template-columns: 340px 1fr; gap:16px; padding:16px; }
+section { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:12px 14px; }
+h2 { font-size:15px; margin:0 0 8px; } label { display:block; font-size:13px; margin:6px 0; color:var(--muted); }
+select, input, textarea, button { font:inherit; color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:4px 6px; }
+textarea { width:100%; box-sizing:border-box; height:230px; font-family:'IBM Plex Mono',monospace; font-size:13px; }
+button { cursor:pointer; } button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+table { border-collapse:collapse; font-size:13px; width:100%; } th, td { border-bottom:1px solid var(--line); padding:4px 6px; text-align:center; }
+th { color:var(--muted); font-weight:600; } td.mono { font-family:'IBM Plex Mono',monospace; }
+.st { display:inline-block; min-width:22px; padding:1px 5px; border-radius:4px; font-weight:700; color:#fff; }
+.st.I { background:var(--I); color:var(--ink); } .st.S { background:var(--S); } .st.E { background:var(--E); } .st.M { background:var(--M); } .st.O { background:var(--O); }
+td.chg { background:var(--hl); outline:2px solid var(--focus); outline-offset:-2px; } tr.cur td { background:color-mix(in srgb,var(--accent) 10%,var(--panel)); }
+.note { color:var(--muted); font-size:13px; } .err { color:#c0441b; font-size:13px; } .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; } @media (max-width:900px){ main,.grid2{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<header><h1>Simulador de Multiprocessamento <b>RISC-V</b> · coerência de cache por snooping</h1>
+<button id="theme" title="Alternar contraste">◐</button></header>
+<main>
+<div>
+<section>
+<h2>Configuração</h2>
+<label>Protocolo <select id="protocol"><option value="msi">MSI</option><option value="mesi" selected>MESI</option><option value="moesi">MOESI</option></select></label>
+<label>Núcleos <select id="cores"><option>2</option><option selected>3</option><option>4</option></select></label>
+<label>Tamanho do bloco (bytes) <select id="block"><option>4</option><option>8</option><option selected>16</option><option>32</option><option>64</option></select></label>
+<label>Linhas de cada cache (mapeamento direto) <select id="lines"><option>1</option><option>2</option><option selected>4</option><option>8</option><option>16</option></select></label>
+<label>Exemplo <select id="example"></select></label>
+<label>Acessos (um por linha: núcleo, R ou W, endereço)</label>
+<textarea id="trace" spellcheck="false"></textarea>
+<div class="row" style="margin-top:8px"><button class="primary" id="run">Executar</button><button id="tex">Tabela em LaTeX</button></div>
+<p id="errors" class="err"></p>
+</section>
+<section style="margin-top:16px">
+<h2>Como ler</h2>
+<p class="note">Cada núcleo tem uma cache privada com write-back; as caches vigiam o barramento (snooping), que atende uma transação por vez. <b>M</b> modificado, <b>O</b> dono (MOESI), <b>E</b> exclusivo (MESI e MOESI), <b>S</b> compartilhado, <b>I</b> inválido. A tabela mostra o estado do bloco acessado em cada cache depois do acesso; as células que mudaram ficam destacadas. Nos protocolos MSI e MESI os dados vêm da memória, salvo quando outra cache tem o bloco em M (ela envia e atualiza a memória); no MOESI o dono envia o bloco sem escrever na memória. Endereços diferentes no mesmo bloco mostram o compartilhamento falso.</p>
+</section>
+</div>
+<div>
+<section><h2>Passos <span class="note" id="summary"></span></h2><div style="overflow-x:auto"><table id="steps"></table></div></section>
+<div class="grid2">
+<section><h2>Estatísticas</h2><table id="stats"></table></section>
+<section><h2>Comparação dos protocolos <span class="note">mesma sequência</span></h2><table id="compare"></table></section>
+</div>
+</div>
+</main>
+<script type="module">
+import { PROTOCOLS, parseTrace, simulate, latexTable } from './js/coherence.js';
+const EXAMPLES = {
+  'Leituras e escrita em um bloco': 'P0 R 0x00\nP1 R 0x00\nP0 W 0x00\nP1 R 0x00\nP2 W 0x00\nP1 R 0x00',
+  'Exclusivo: leitura e escrita sem compartilhar': '# no MESI, a escrita depois da leitura não usa o barramento\nP0 R 0x40\nP0 W 0x40\nP0 R 0x40\nP1 R 0x40',
+  'Compartilhamento falso': '# P0 escreve em 0x00 e P1 em 0x04: variáveis diferentes, mesmo bloco de 16 bytes\nP0 W 0x00\nP1 W 0x04\nP0 W 0x00\nP1 W 0x04\nP0 W 0x00\nP1 W 0x04',
+  'Produtor e consumidor': '# P0 produz dado e sinaliza a flag; P1 espera a flag e lê o dado\nP0 W 0x100\nP0 W 0x200\nP1 R 0x200\nP1 R 0x100\nP0 W 0x100\nP1 R 0x100',
+  'Substituição com write-back': '# com 1 linha por cache, 0x00 e 0x40 disputam a mesma linha\nP0 W 0x00\nP0 R 0x40\nP1 R 0x00',
+};
+const $ = (id) => document.getElementById(id);
+$('example').innerHTML = Object.keys(EXAMPLES).map((k) => `<option>${k}</option>`).join('');
+$('trace').value = EXAMPLES[Object.keys(EXAMPLES)[0]];
+$('example').onchange = () => { $('trace').value = EXAMPLES[$('example').value]; if ($('example').value.startsWith('Substituição')) $('lines').value = '1'; run(); };
+const cfg = () => ({ protocol: $('protocol').value, cores: +$('cores').value, blockSize: +$('block').value, lines: +$('lines').value });
+const hx = (n) => `0x${n.toString(16)}`;
+const st = (s) => `<span class="st ${s}">${s}</span>`;
+let last = null;
+function run() {
+  const c = cfg();
+  const { ops, errors } = parseTrace($('trace').value, c.cores);
+  $('errors').textContent = errors.length ? `Linhas não entendidas: ${errors.map((e) => e.line).join(', ')} (use, por exemplo, "P1 W 0x10"; núcleos de 0 a ${c.cores - 1}).` : '';
+  const r = simulate(ops, c); last = { r, c };
+  const head = `<tr><th>#</th><th>Acesso</th><th>Bloco</th><th>Resultado</th><th>Barramento</th><th>Dados de</th>${Array.from({ length: c.cores }, (_, k) => `<th>P${k}</th>`).join('')}<th>Obs.</th></tr>`;
+  $('steps').innerHTML = head + r.steps.map((s, i) => {
+    const obs = [s.wb !== null ? `write-back do bloco ${s.wb}` : '', s.notes.includes('flush') ? 'dono atualiza a memória' : '', s.notes.includes('silent') ? 'E→M sem barramento' : ''].filter(Boolean).join('; ');
+    return `<tr><td>${i + 1}</td><td class="mono">P${s.core} ${s.kind === 'R' ? 'lê' : 'escreve'} ${hx(s.addr)}</td><td>${s.block}</td><td>${s.hit ? 'acerto' : 'falha'}</td><td class="mono">${s.bus ?? '-'}</td><td>${s.from === 'mem' ? 'memória' : s.from ?? '-'}</td>${s.after.map((a, k) => `<td class="${a !== s.before[k] ? 'chg' : ''}" title="antes: ${s.before[k]}">${st(a)}</td>`).join('')}<td class="note">${obs}</td></tr>`;
+  }).join('');
+  const t = r.stats;
+  $('summary').textContent = `${c.protocol.toUpperCase()}, ${c.cores} núcleos, blocos de ${c.blockSize} bytes`;
+  $('stats').innerHTML = [['Acertos', t.hits], ['Falhas (inclui upgrade)', t.misses], ['BusRd', t.bus.BusRd], ['BusRdX', t.bus.BusRdX], ['BusUpgr', t.bus.BusUpgr], ['Transações no barramento', t.busTotal], ['Leituras da memória', t.memReads], ['Escritas na memória', t.memWrites], ['Transferências entre caches', t.c2c], ['Invalidações', t.invalidations]].map(([k, v]) => `<tr><th style="text-align:left">${k}</th><td>${v}</td></tr>`).join('');
+  const all = PROTOCOLS.map((p) => [p, simulate(ops, { ...c, protocol: p }).stats]);
+  $('compare').innerHTML = `<tr><th></th>${all.map(([p]) => `<th>${p.toUpperCase()}</th>`).join('')}</tr>` + [['Barramento', 'busTotal'], ['Leituras da memória', 'memReads'], ['Escritas na memória', 'memWrites'], ['Entre caches', 'c2c'], ['Invalidações', 'invalidations']].map(([k, f]) => `<tr><th style="text-align:left">${k}</th>${all.map(([, s]) => `<td>${s[f]}</td>`).join('')}</tr>`).join('');
+}
+$('run').onclick = run;
+for (const id of ['protocol', 'cores', 'block', 'lines']) $(id).onchange = run;
+$('tex').onclick = () => { if (!last) return; const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([latexTable(last.r.steps, last.c)], { type: 'application/x-tex' })); a.download = 'coerencia.tex'; a.click(); };
+$('theme').onclick = () => { document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; };
+run();
+</script>
+</body>
+</html>
