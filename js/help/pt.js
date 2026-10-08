@@ -19,7 +19,7 @@ export default {
     <li>Escolha o <strong>protocolo</strong>, o número de <strong>núcleos</strong>, o <strong>tamanho do bloco</strong> e o número de <strong>linhas</strong> de cada cache.</li>
     <li>Escolha o modo: <strong>Sequência de acessos</strong>, em que você escreve diretamente quem lê ou escreve qual endereço, ou <strong>Programa RISC-V</strong>, em que os núcleos executam um programa e os acessos saem das instruções.</li>
     <li>Escolha um <strong>exemplo</strong> ou escreva o seu texto no editor. Os erros aparecem abaixo dele, com o número da linha; clique em um erro para ir até ela.</li>
-    <li>Clique em <strong>Executar</strong> (ou <kbd>Ctrl</kbd> + <kbd>Enter</kbd>). A mudança de qualquer opção também executa de novo.</li>
+    <li>Clique em <strong>Executar</strong> (ou <kbd>Ctrl</kbd> + <kbd>Enter</kbd>): o texto do editor é aplicado e a animação começa do início. A mudança de qualquer opção também executa de novo, mas sem animar.</li>
     <li>Avance com a <kbd>seta para a direita</kbd> ou com <strong>Animar</strong>. As figuras e a tabela de passos acompanham o passo atual.</li>
 </ol>
 <p class="tip">Sugestão para começar: o exemplo <em>Leituras e escrita em um bloco</em> com o MSI, depois o mesmo com o MESI e o MOESI, observando a tabela <strong>Comparação dos protocolos</strong>.</p>`,

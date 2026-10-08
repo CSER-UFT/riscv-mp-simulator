@@ -55,7 +55,7 @@ code.addEventListener('keydown', (e) => {
         refreshEditor();
     } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
-        run();
+        runAndAnimate();
     }
 });
 function goToLine(n) {
@@ -124,6 +124,14 @@ function run() {
     last = { r, c, prog, exec };
     $('slider').max = r.steps.length;
     renderAll(r.steps.length ? 1 : 0);
+    return errors.length === 0 && r.steps.length > 0;
+}
+
+/** Botão Executar (e Ctrl + Enter): aplica o texto do editor, volta ao início e anima. Sem erros, só. */
+function runAndAnimate() {
+    if (!run()) return;
+    show(0);
+    play();
 }
 
 function renderAll(step = cur) {
@@ -259,7 +267,7 @@ langSelect.addEventListener('change', () => {
 $('modeTrace').onclick = () => mode !== 'trace' && setMode('trace');
 $('modeProg').onclick = () => mode !== 'prog' && setMode('prog');
 $('example').onchange = () => { if ($('example').value) { loadExample($('example').value); run(); } };
-$('run').onclick = run;
+$('run').onclick = runAndAnimate;
 for (const id of ['protocol', 'cores', 'block', 'lines', 'schedule', 'seed', 'maxInstr']) $(id).onchange = run;
 $('first').onclick = () => { stop(); show(0); };
 $('prev').onclick = () => { stop(); show(cur - 1); };

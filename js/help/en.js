@@ -16,7 +16,7 @@ export default {
     <li>Choose the <strong>protocol</strong>, the number of <strong>cores</strong>, the <strong>block size</strong> and the number of <strong>lines</strong> in each cache.</li>
     <li>Choose the mode: <strong>Access trace</strong>, where you write directly who reads or writes which address, or <strong>RISC-V program</strong>, where the cores run a program and the accesses come from its instructions.</li>
     <li>Pick an <strong>example</strong> or write your own text in the editor. Errors appear below it, with the line number; click an error to jump to it.</li>
-    <li>Click <strong>Run</strong> (or <kbd>Ctrl</kbd> + <kbd>Enter</kbd>). Changing any option also runs again.</li>
+    <li>Click <strong>Run</strong> (or <kbd>Ctrl</kbd> + <kbd>Enter</kbd>): the editor text is applied and the animation starts from the beginning. Changing any option also runs again, without animating.</li>
     <li>Move forward with the <kbd>right arrow</kbd> or with <strong>Animate</strong>. The figures and the step table follow the current step.</li>
 </ol>
 <p class="tip">Suggestion to begin: the example <em>Reads and a write to one block</em> with MSI, then the same with MESI and MOESI, watching the <strong>Protocol comparison</strong> table.</p>`,
