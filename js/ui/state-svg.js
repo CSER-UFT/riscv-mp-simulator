@@ -8,7 +8,7 @@
 import { text, head, label, esc } from './svg.js';
 import { t as tr } from '../i18n/index.js';
 
-const W = 680, H = 520, R = 32;
+const W = 680, H = 550, R = 32;
 
 const POS = {
     msi: { M: [340, 120], S: [550, 385], I: [130, 385] },
