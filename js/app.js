@@ -26,14 +26,18 @@ function refreshEditor() {
     const n = code.value.split('\n').length;
     let g = '';
     for (let i = 1; i <= n; i++) g += errorLines.has(i) ? `<span class="err">${i}</span>\n` : `${i}\n`;
-    $('gutter').innerHTML = g;
-    $('highlight').innerHTML = highlight(code.value, errorLines, mode);
+    // O conteúdo vai num bloco interno, deslocado por transform (ver syncScroll).
+    $('gutter').innerHTML = `<div class="code-inner">${g}</div>`;
+    $('highlight').innerHTML = `<div class="code-inner">${highlight(code.value, errorLines, mode)}</div>`;
     syncScroll();
 }
+// Destaque e numeração acompanham a rolagem por transform: o textarea tem barras de rolagem e o <pre> não,
+// então a rolagem máxima do <pre> é menor e, no fim de linhas longas, o cursor ficava deslocado.
 function syncScroll() {
-    $('gutter').scrollTop = code.scrollTop;
-    $('highlight').scrollTop = code.scrollTop;
-    $('highlight').scrollLeft = code.scrollLeft;
+    const x = code.scrollLeft, y = code.scrollTop;
+    const g = $('gutter').firstElementChild, h = $('highlight').firstElementChild;
+    if (g) g.style.transform = `translateY(${-y}px)`;
+    if (h) h.style.transform = `translate(${-x}px, ${-y}px)`;
 }
 code.addEventListener('scroll', syncScroll);
 code.addEventListener('input', () => {
