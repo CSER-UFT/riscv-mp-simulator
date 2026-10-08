@@ -31,7 +31,7 @@ jobs:
       - name: Preparar site
         run: |
           mkdir _site
-          cp -r index.html js _site/
+          cp -r index.html js css svg _site/
       - uses: actions/upload-pages-artifact@v3
       - id: deployment
         uses: actions/deploy-pages@v4

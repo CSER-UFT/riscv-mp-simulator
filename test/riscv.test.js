@@ -2,12 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { assemble, runPrograms } from '../js/riscv.js';
 import { simulate } from '../js/coherence.js';
-import { PROGRAM_EXAMPLES } from '../js/examples.js';
+import { PROGRAM_EXAMPLES, exampleSource } from '../js/examples.js';
 import { stateSvg, stepTransitions } from '../js/ui/state-svg.js';
 import { systemSvg } from '../js/ui/system-svg.js';
 
 const exec = (name, cores = 3, schedule = 'rr', seed = 1, blockSize = 16) => {
-    const p = assemble(PROGRAM_EXAMPLES[name]);
+    const p = assemble(exampleSource(PROGRAM_EXAMPLES.find((e) => e.id === name)));
     assert.deepEqual(p.errors, []);
     return { p, r: runPrograms(p, { cores, blockSize, schedule, seed }) };
 };
@@ -26,14 +26,14 @@ test('montador: rótulos de dados, alinhamento e erros', () => {
 
 test('corrida sem trava perde incrementos; travas e atômicas não', () => {
     for (const n of [2, 3, 4]) {
-        assert.equal(count(exec('Condição de corrida (sem trava)', n)), 2);
-        for (const k of ['Trava com amoswap (test and set)', 'Trava test and test and set', 'Incremento com lr.w e sc.w', 'Incremento com amoadd'])
+        assert.equal(count(exec('race', n)), 2);
+        for (const k of ['tas', 'ttas', 'lrsc', 'amoadd'])
             for (const seed of [1, 7, 42]) assert.equal(count(exec(k, n, 'random', seed)), 2 * n, `${k}, ${n} núcleos, semente ${seed}`);
     }
 });
 
 test('sc.w falha quando outro núcleo escreve no bloco reservado', () => {
-    const e = exec('Incremento com lr.w e sc.w', 3);
+    const e = exec('lrsc', 3);
     assert.ok(e.r.cores.some((c) => c.scFails > 0));
     assert.ok(e.r.ops.some((o) => o.kind === 'N' && o.atomic === 'scfail'));
     const s = simulate(e.r.ops, { protocol: 'mesi', cores: 3, blockSize: 16, lines: 4 });
@@ -42,7 +42,7 @@ test('sc.w falha quando outro núcleo escreve no bloco reservado', () => {
 
 test('test and test and set usa menos o barramento que test and set com 4 núcleos', () => {
     const bus = (k) => simulate(exec(k, 4).r.ops, { protocol: 'mesi', cores: 4, blockSize: 16, lines: 4 }).stats.busTotal;
-    assert.ok(bus('Trava test and test and set') < bus('Trava com amoswap (test and set)'));
+    assert.ok(bus('ttas') < bus('tas'));
 });
 
 test('a0 traz o número do núcleo; limite de instruções', () => {
@@ -66,4 +66,12 @@ test('figuras: transições destacadas e SVG bem formado', () => {
     assert.match(sys, /BusUpgr/);
     assert.match(sys, /invalidada/);
     assert.match(systemSvg(null, cfg, 0), /estado inicial/);
+});
+
+test('exemplos montam nos dois idiomas', async () => {
+    const { setLanguage } = await import('../js/i18n/index.js');
+    for (const lang of ['en', 'pt']) {
+        setLanguage(lang);
+        for (const ex of PROGRAM_EXAMPLES) assert.deepEqual(assemble(exampleSource(ex)).errors, [], `${lang} ${ex.id}`);
+    }
 });

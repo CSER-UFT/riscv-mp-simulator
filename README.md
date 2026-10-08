@@ -2,11 +2,12 @@
 
 Simulador didático de coerência de cache por snooping em barramento, com os protocolos **MSI**, **MESI** e **MOESI**, desenvolvido para o curso de **Ciência da Computação** da **Universidade Federal do Tocantins**. Faz parte da família de simuladores do grupo, ao lado do [riscv-cpu-simulator](https://github.com/CSER-UFT/riscv-cpu-simulator), do [riscv-dlp-simulator](https://github.com/CSER-UFT/riscv-dlp-simulator) e do [riscv-fp-simulator](https://github.com/CSER-UFT/riscv-fp-simulator).
 
-Roda inteiramente no navegador (HTML e JavaScript, sem dependências) e pode ser publicado no GitHub Pages (em Settings > Pages, fonte "GitHub Actions").
+Roda inteiramente no navegador (HTML e JavaScript, sem dependências), em português ou inglês, com tema claro ou escuro e ajuda completa, e pode ser publicado no GitHub Pages (em Settings > Pages, fonte "GitHub Actions").
 
 ## O que faz
 
 * De 2 a 4 núcleos, cada um com cache privada de mapeamento direto e write-back; tamanho do bloco e número de linhas configuráveis.
+* Editor com destaque de sintaxe, numeração de linhas e lista de erros (clique para ir até a linha), no mesmo padrão dos outros simuladores.
 * Entrada como sequência de acessos, uma linha por acesso: `P0 R 0x00`, `P1 W 0x04`.
 * Para cada acesso: acerto ou falha, transação no barramento (BusRd, BusRdX, BusUpgr), origem dos dados (memória ou outra cache), write-back na substituição e o estado do bloco em todas as caches, com as mudanças destacadas.
 * Estatísticas (transações, leituras e escritas na memória, transferências entre caches, invalidações) e a comparação dos três protocolos na mesma sequência.
@@ -23,7 +24,6 @@ Simplificações: a busca de instruções fica fora do modelo (só a memória de
 ## Próximas etapas previstas
 
 * Calculadora de topologias de rede (enlaces, diâmetro, largura de banda da bisseção).
-* Interface em inglês e ajuda completa.
 
 ## Testes
 

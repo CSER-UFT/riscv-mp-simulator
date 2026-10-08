@@ -6,6 +6,7 @@
  * núcleos que guardam o bloco nesse estado depois do passo.
  */
 import { text, head, label, esc } from './svg.js';
+import { t as tr } from '../i18n/index.js';
 
 const W = 680, H = 520, R = 32;
 
@@ -15,7 +16,9 @@ const POS = {
     moesi: { O: [110, 120], M: [340, 120], E: [570, 120], I: [200, 395], S: [480, 395] },
 };
 
-const RD_SHARED = 'PrRd/BusRd (com cópias)', RD_ALONE = 'PrRd/BusRd (sem cópias)';
+// Rótulos traduzidos na hora de desenhar.
+const RD_SHARED = '@withCopies', RD_ALONE = '@alone';
+const labelText = (s) => (s === RD_SHARED ? tr('svg.withCopies') : s === RD_ALONE ? tr('svg.alone') : s);
 const EDGES = {
     msi: [
         ['I', 'S', 'cpu', 'PrRd/BusRd'], ['I', 'M', 'cpu', 'PrWr/BusRdX'], ['S', 'M', 'cpu', 'PrWr/BusUpgr'],
@@ -88,7 +91,7 @@ export function stateSvg(protocol, step, cores) {
     // Laços primeiro, depois as setas curtas e, por último, as diagonais longas, que têm mais lugar livre.
     const ordered = [...edges.filter((e) => e[0] === e[1]), ...edges.filter((e) => e[0] !== e[1]).sort((p, q) => dist(p) - dist(q))];
     for (const e of ordered) {
-        const [a, b, kind, lab] = e;
+        const [a, b, kind] = e, lab = labelText(e[3]);
         const cls = `${kind === 'bus' ? 'snoop' : ''} ${isOn(e) ? 'on' : isSnp(e) ? 'snp' : ''}`;
         if (a === b) {
             // Laço para fora do diagrama: processador de um lado, barramento do outro.
@@ -133,17 +136,17 @@ export function stateSvg(protocol, step, cores) {
         if (who.length) nodes.push(text(x, y + 15, who.join(' '), 'who', 'text-anchor="middle" dominant-baseline="middle"'));
     }
     // Título e legenda.
-    const t = !step ? 'Antes do primeiro acesso' : step.hit === null ? `P${step.core}: ${step.text ?? ''} (sem acesso à memória)`
-        : `P${step.core} ${step.kind === 'R' ? 'lê' : 'escreve'} 0x${step.addr.toString(16)}, bloco ${step.block}${step.bus ? `: ${step.bus}` : ': sem barramento'}`;
+    const title = !step ? tr('svg.before') : step.hit === null ? `P${step.core}: ${step.text ?? ''} (${tr('svg.noAccess')})`
+        : `${tr('svg.access', { c: step.core, verb: tr(step.kind === 'R' ? 'acc.read' : 'acc.write'), addr: `0x${step.addr.toString(16)}`, b: step.block })}: ${step.bus ?? tr('svg.noBus')}`;
     const legend = [
-        `<line x1="14" y1="${H - 34}" x2="44" y2="${H - 34}" class="edge"/>`, text(50, H - 30, 'ação do processador', 'leg'),
-        `<line x1="190" y1="${H - 34}" x2="220" y2="${H - 34}" class="edge snoop"/>`, text(226, H - 30, 'observado no barramento', 'leg'),
-        `<line x1="14" y1="${H - 14}" x2="44" y2="${H - 14}" class="edge on"/>`, text(50, H - 10, `núcleo que acessa${step && step.hit !== null ? ` (P${step.core})` : ''}`, 'leg'),
-        `<line x1="190" y1="${H - 14}" x2="220" y2="${H - 14}" class="edge snp"/>`, text(226, H - 10, 'outras caches', 'leg'),
-        text(400, H - 30, 'Flush: a cache envia o bloco', 'leg'),
-        text(400, H - 10, protocol === 'moesi' ? '(o dono não grava na memória)' : '(e atualiza a memória)', 'leg'),
+        `<line x1="14" y1="${H - 34}" x2="44" y2="${H - 34}" class="edge"/>`, text(50, H - 30, tr('svg.legCpu'), 'leg'),
+        `<line x1="210" y1="${H - 34}" x2="240" y2="${H - 34}" class="edge snoop"/>`, text(246, H - 30, tr('svg.legBus'), 'leg'),
+        `<line x1="14" y1="${H - 14}" x2="44" y2="${H - 14}" class="edge on"/>`, text(50, H - 10, `${tr('svg.legMe')}${step && step.hit !== null ? ` (P${step.core})` : ''}`, 'leg'),
+        `<line x1="210" y1="${H - 14}" x2="240" y2="${H - 14}" class="edge snp"/>`, text(246, H - 10, tr('svg.legOthers'), 'leg'),
+        text(430, H - 30, tr('svg.legFlush'), 'leg'),
+        text(430, H - 10, tr(protocol === 'moesi' ? 'svg.legFlushOwner' : 'svg.legFlushMem'), 'leg'),
     ];
-    return `<svg xmlns="http://www.w3.org/2000/svg" class="fig-svg" data-figure="estados" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc(`Diagrama de estados ${protocol.toUpperCase()}`)}">`
-        + text(14, 22, `${protocol.toUpperCase()} · ${t}`, 'title')
+    return `<svg xmlns="http://www.w3.org/2000/svg" class="fig-svg" data-figure="estados" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc(tr('svg.fsmAria', { p: protocol.toUpperCase() }))}">`
+        + text(14, 22, `${protocol.toUpperCase()} · ${title}`, 'title')
         + out.join('') + nodes.join('') + lbls.join('') + legend.join('') + '</svg>';
 }

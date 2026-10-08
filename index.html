@@ -1,118 +1,92 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Simulador de Multiprocessamento RISC-V</title>
-<style>
-:root { --bg:#eef1f6; --panel:#fff; --ink:#1d2433; --muted:#5d687c; --line:#d8dee8; --accent:#3352c4; --hl:#fff4d4; --focus:#e9a90c;
-  --snp:#d9730d; --data:#23865b; --M:#d1495b; --O:#d9792b; --E:#9a5bc4; --S:#2f9e6e; --I:#b9c3d3; }
-[data-theme=dark] { --bg:#141922; --panel:#1b2230; --ink:#e4e8f0; --muted:#a0aabb; --line:#2e3849; --accent:#8ea2ff; --hl:#3a3320;
-  --snp:#f2a04a; --data:#4cc58f; --I:#56627a; }
-body { margin:0; font-family:'IBM Plex Sans',system-ui,sans-serif; background:var(--bg); color:var(--ink); }
-header { display:flex; gap:12px; align-items:center; padding:10px 18px; background:var(--panel); border-bottom:1px solid var(--line); }
-header h1 { font-size:17px; margin:0; flex:1; } header h1 b { color:var(--accent); }
-main { display:grid; grid-template-columns: 360px minmax(0,1fr); gap:16px; padding:16px; }
-section { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:12px 14px; }
-h2 { font-size:15px; margin:0 0 8px; } label { display:block; font-size:13px; margin:6px 0; color:var(--muted); }
-select, input, textarea, button { font:inherit; color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:4px 6px; }
-textarea { width:100%; box-sizing:border-box; height:300px; font-family:'IBM Plex Mono',monospace; font-size:13px; }
-button { cursor:pointer; } button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
-.tabs { display:flex; gap:0; margin:4px 0 8px; } .tabs button { border-radius:0; flex:1; } .tabs button:first-child { border-radius:4px 0 0 4px; } .tabs button:last-child { border-radius:0 4px 4px 0; }
-.tabs button.sel { background:var(--accent); color:#fff; border-color:var(--accent); }
-table { border-collapse:collapse; font-size:13px; width:100%; } th, td { border-bottom:1px solid var(--line); padding:4px 6px; text-align:center; }
-th { color:var(--muted); font-weight:600; } td.mono { font-family:'IBM Plex Mono',monospace; }
-.st { display:inline-block; min-width:22px; padding:1px 5px; border-radius:4px; font-weight:700; color:#fff; }
-.st.I { background:var(--I); color:var(--ink); } .st.S { background:var(--S); } .st.E { background:var(--E); } .st.M { background:var(--M); } .st.O { background:var(--O); }
-td.chg { background:var(--hl); outline:2px solid var(--focus); outline-offset:-2px; }
-#steps tr[data-i] { cursor:pointer; } #steps tr.cur td { background:color-mix(in srgb,var(--accent) 14%,var(--panel)); }
-.note { color:var(--muted); font-size:13px; } .err { color:#c0441b; font-size:13px; white-space:pre-line; } .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; } @media (max-width:1000px){ main,.grid2{grid-template-columns:1fr;} }
-.figs { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; margin-top:10px; } .figs > div { max-width:100%; overflow-x:auto; }
-.hidden { display:none !important; }
-
-/* Figuras em SVG */
-.fig-svg text { font-family:'IBM Plex Sans',system-ui,sans-serif; font-size:12px; fill:var(--ink); }
-.fig-svg .title { font-size:13px; font-weight:600; } .fig-svg .small { font-size:11px; } .fig-svg .mono { font-family:'IBM Plex Mono',monospace; }
-.fig-svg .muted { fill:var(--muted); } .fig-svg .bold { font-weight:700; } .fig-svg .warn { fill:var(--M); font-weight:600; } .fig-svg .snptxt { fill:var(--snp); font-weight:600; }
-.fig-svg .blk { fill:var(--panel); stroke:var(--ink); stroke-width:1.2; } .fig-svg .blk.act { stroke:var(--accent); stroke-width:2.4; }
-.fig-svg .blk.inv { stroke:var(--M); stroke-width:1.8; stroke-dasharray:5 3; }
-.fig-svg .rowhl { fill:color-mix(in srgb,var(--focus) 24%,var(--panel)); }
-.fig-svg .chip.stM { fill:var(--M); } .fig-svg .chip.stO { fill:var(--O); } .fig-svg .chip.stE { fill:var(--E); } .fig-svg .chip.stS { fill:var(--S); } .fig-svg .chip.stI { fill:var(--I); }
-.fig-svg .chipt { font-size:10px; font-weight:700; fill:#fff; } .fig-svg .chipt.tI { fill:var(--ink); }
-.fig-svg .wire { fill:none; stroke:var(--muted); stroke-width:1.3; } .fig-svg .head { fill:var(--muted); }
-.fig-svg .wire.on { stroke:var(--accent); stroke-width:2.4; } .fig-svg .head.on { fill:var(--accent); }
-.fig-svg .wire.snp { stroke:var(--snp); stroke-width:2.4; } .fig-svg .head.snp { fill:var(--snp); }
-.fig-svg .wire.data { stroke:var(--data); stroke-width:2.4; } .fig-svg .head.data { fill:var(--data); }
-.fig-svg .wire.wb { stroke:var(--M); stroke-width:2.4; } .fig-svg .head.wb { fill:var(--M); }
-.fig-svg .bus { stroke:var(--ink); stroke-width:3; } .fig-svg .bus.on { stroke:var(--accent); } .fig-svg .bus.data { stroke:var(--data); }
-.fig-svg .dot { fill:var(--ink); }
-.fig-svg .lblbg { fill:var(--panel); } .fig-svg .lbl { font-size:11px; } .fig-svg .lbl.on { fill:var(--accent); font-weight:700; }
-.fig-svg .lbl.snp { fill:var(--snp); font-weight:700; } .fig-svg .who { font-size:10px; font-weight:700; fill:var(--ink); }
-.fig-svg .edge { fill:none; stroke:var(--muted); stroke-width:1.4; } .fig-svg .edge.snoop { stroke-dasharray:6 4; }
-.fig-svg .edge.on { stroke:var(--accent); stroke-width:3; } .fig-svg .edge.snp { stroke:var(--snp); stroke-width:3; }
-.fig-svg .head.snoop { fill:var(--muted); } .fig-svg .head.snoop.snp { fill:var(--snp); }
-.fig-svg .state { stroke:var(--ink); stroke-width:1.5; } .fig-svg .state.cur { stroke:var(--accent); stroke-width:4; }
-.fig-svg .state.stM { fill:color-mix(in srgb,var(--M) 28%,var(--panel)); } .fig-svg .state.stO { fill:color-mix(in srgb,var(--O) 28%,var(--panel)); }
-.fig-svg .state.stE { fill:color-mix(in srgb,var(--E) 28%,var(--panel)); } .fig-svg .state.stS { fill:color-mix(in srgb,var(--S) 28%,var(--panel)); }
-.fig-svg .state.stI { fill:color-mix(in srgb,var(--I) 35%,var(--panel)); }
-.fig-svg .stname { font-size:20px; font-weight:700; } .fig-svg .leg { font-size:11px; fill:var(--muted); }
-</style>
-</head>
-<body>
-<header><h1>Simulador de Multiprocessamento <b>RISC-V</b> · coerência de cache por snooping</h1>
-<button id="theme" title="Alternar contraste">◐</button></header>
-<main>
-<div>
-<section>
-<h2>Configuração</h2>
-<label>Protocolo <select id="protocol"><option value="msi">MSI</option><option value="mesi" selected>MESI</option><option value="moesi">MOESI</option></select></label>
-<label>Núcleos <select id="cores"><option>2</option><option selected>3</option><option>4</option></select></label>
-<label>Tamanho do bloco (bytes) <select id="block"><option>4</option><option>8</option><option selected>16</option><option>32</option><option>64</option></select></label>
-<label>Linhas de cada cache (mapeamento direto) <select id="lines"><option>1</option><option>2</option><option selected>4</option><option>8</option><option>16</option></select></label>
-<div class="tabs"><button id="modeTrace" class="sel">Sequência de acessos</button><button id="modeProg">Programa RISC-V</button></div>
-<label>Exemplo <select id="example"></select></label>
-<div id="progOpts" class="hidden">
-<label>Intercalação dos núcleos <select id="schedule"><option value="rr">rodízio: uma instrução de cada núcleo</option><option value="random">aleatória (com semente)</option></select></label>
-<div class="row"><label>Semente <input id="seed" type="number" value="1" style="width:70px"></label><label>Limite por núcleo <input id="maxInstr" type="number" value="400" style="width:70px"></label></div>
-</div>
-<label id="srcLabel">Acessos (um por linha: núcleo, R ou W, endereço)</label>
-<textarea id="src" spellcheck="false"></textarea>
-<div class="row" style="margin-top:8px"><button class="primary" id="run">Executar</button><button id="tex">Tabela em LaTeX</button></div>
-<p id="errors" class="err"></p>
-</section>
-<section id="progResult" class="hidden" style="margin-top:16px">
-<h2>Resultado do programa</h2>
-<table id="coresTable"></table>
-<p class="note" style="margin:10px 0 4px">Valores finais na memória</p>
-<table id="memTable"></table>
-</section>
-<section style="margin-top:16px">
-<h2>Como ler</h2>
-<p class="note">Cada núcleo tem uma cache privada com write-back; as caches vigiam o barramento (snooping), que atende uma transação por vez. <b>M</b> modificado, <b>O</b> dono (MOESI), <b>E</b> exclusivo (MESI e MOESI), <b>S</b> compartilhado, <b>I</b> inválido. Nos protocolos MSI e MESI os dados vêm da memória, salvo quando outra cache tem o bloco em M (ela envia e atualiza a memória); no MOESI o dono envia o bloco sem escrever na memória. Endereços diferentes no mesmo bloco mostram o compartilhamento falso.</p>
-<p class="note">No modo <b>Programa RISC-V</b>, todos os núcleos rodam o mesmo programa (RV32I com a extensão A), e a0 começa com o número do núcleo. lw e lr.w leem; sw, sc.w e as AMOs (amoswap.w, amoadd.w...) escrevem, e a AMO pede o bloco exclusivo para ler e gravar de uma vez. A reserva do lr.w se perde quando outro núcleo escreve no mesmo bloco; então o sc.w falha e não grava nada.</p>
-</section>
-</div>
-<div>
-<section>
-<h2>Passo a passo <span class="note" id="summary"></span></h2>
-<div class="row">
-<button id="first" title="Início">⏮</button><button id="prev" title="Passo anterior">◀</button><button id="play" title="Animar">▶ Animar</button><button id="next" title="Próximo passo">▶</button><button id="last" title="Fim">⏭</button>
-<input id="slider" type="range" min="0" max="0" value="0" style="flex:1;min-width:120px">
-<span class="note" id="pos"></span>
-</div>
-<div class="row" style="margin-top:8px">
-<label style="margin:0">Figura <select id="figSel"><option value="both">sistema e diagrama de estados</option><option value="sys">sistema</option><option value="fsm">diagrama de estados</option></select></label>
-<button data-export="sistema">Exportar sistema (SVG)</button><button data-export="estados">Exportar diagrama (SVG)</button>
-</div>
-<div class="figs"><div id="figSys"></div><div id="figFsm"></div></div>
-</section>
-<section style="margin-top:16px"><h2>Passos</h2><div style="overflow-x:auto;max-height:420px;overflow-y:auto" id="stepsBox"><table id="steps"></table></div></section>
-<div class="grid2">
-<section><h2>Estatísticas</h2><table id="stats"></table></section>
-<section><h2>Comparação dos protocolos <span class="note">mesma sequência</span></h2><table id="compare"></table></section>
-</div>
-</div>
-</main>
-<script type="module" src="js/app.js"></script>
-</body>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Simulador de Multiprocessamento RISC-V</title>
+        <meta name="description" content="Simulador didático de multiprocessamento com RISC-V: coerência de cache por snooping (MSI, MESI, MOESI) e programas com a extensão A." />
+        <link rel="icon" href="./svg/cpu.svg" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" />
+        <link rel="stylesheet" type="text/css" href="./css/index.css" />
+        <script>
+            // Aplica o tema antes da primeira pintura, para não piscar.
+            try {
+                const theme = localStorage.getItem('mp.theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.dataset.theme = theme;
+            } catch { document.documentElement.dataset.theme = 'light'; }
+        </script>
+    </head>
+    <body>
+        <header id="header">
+            <div class="brand"><span class="icon i-cpu brand-mark" aria-hidden="true"></span><span class="brand-name" data-i18n-html="ui.appTitle">Simulador de Multiprocessamento <b>RISC-V</b></span></div>
+            <div class="tools">
+                <label class="lang"><span class="sr-only" data-i18n="ui.language">Idioma</span><select id="lang-select"></select></label>
+                <button type="button" id="theme-toggle" class="btn icon-btn" data-i18n-title="ui.theme"><span class="icon i-moon" aria-hidden="true"></span><span class="sr-only" data-i18n="ui.theme">Alternar contraste</span></button>
+                <button type="button" id="open-ajuda" class="btn" data-i18n="ui.help">Ajuda</button>
+            </div>
+        </header>
+        <div id="readme" class="readme"></div>
+        <main>
+            <div>
+                <section>
+                    <h2 data-i18n="cfg.title">Configuração</h2>
+                    <label><span data-i18n="cfg.protocol">Protocolo</span> <select id="protocol"><option value="msi">MSI</option><option value="mesi" selected>MESI</option><option value="moesi">MOESI</option></select></label>
+                    <label><span data-i18n="cfg.cores">Núcleos</span> <select id="cores"><option>2</option><option selected>3</option><option>4</option></select></label>
+                    <label><span data-i18n="cfg.block">Tamanho do bloco (bytes)</span> <select id="block"><option>4</option><option>8</option><option selected>16</option><option>32</option><option>64</option></select></label>
+                    <label><span data-i18n="cfg.lines">Linhas de cada cache</span> <select id="lines"><option>1</option><option>2</option><option selected>4</option><option>8</option><option>16</option></select></label>
+                    <div class="tabs"><button type="button" class="btn sel" id="modeTrace" data-i18n="mode.trace">Sequência de acessos</button><button type="button" class="btn" id="modeProg" data-i18n="mode.prog">Programa RISC-V</button></div>
+                    <label><span data-i18n="cfg.example">Exemplo</span> <select id="example"></select></label>
+                    <div id="progOpts" class="hidden">
+                        <label><span data-i18n="cfg.schedule">Intercalação dos núcleos</span> <select id="schedule"><option value="rr" data-i18n="sched.rr">rodízio</option><option value="random" data-i18n="sched.random">aleatória</option></select></label>
+                        <div class="row"><label><span data-i18n="cfg.seed">Semente</span> <input id="seed" type="number" value="1" style="width:70px" /></label><label><span data-i18n="cfg.limit">Limite por núcleo</span> <input id="maxInstr" type="number" value="400" style="width:70px" /></label></div>
+                    </div>
+                    <label id="srcLabel"></label>
+                    <div class="code-box">
+                        <pre id="gutter" class="code-gutter" aria-hidden="true"></pre>
+                        <div class="code-area">
+                            <pre id="highlight" aria-hidden="true"></pre>
+                            <textarea id="src" spellcheck="false" wrap="off" aria-labelledby="srcLabel"></textarea>
+                        </div>
+                    </div>
+                    <ul id="errors" class="errors"></ul>
+                    <div class="row" style="margin-top:8px"><button type="button" class="btn primary" id="run" data-i18n="btn.run" data-i18n-title="btn.runHelp">Executar</button><button type="button" class="btn outline" id="tex" data-i18n="btn.tex">Tabela em LaTeX</button></div>
+                    <p class="note" data-i18n-html="legend.states"></p>
+                </section>
+                <section id="progResult" class="hidden" style="margin-top:16px">
+                    <h2 data-i18n="prog.title">Resultado do programa</h2>
+                    <table id="coresTable"></table>
+                    <p class="note" style="margin:10px 0 4px" data-i18n="prog.memTitle">Valores finais na memória</p>
+                    <table id="memTable"></table>
+                </section>
+            </div>
+            <div>
+                <section>
+                    <h2><span data-i18n="step.title">Passo a passo</span> <span class="note" id="summary"></span></h2>
+                    <div class="row ctl">
+                        <button type="button" class="btn icon-btn" id="first" data-i18n-title="ctl.start"><span class="icon i-skip-back" aria-hidden="true"></span></button>
+                        <button type="button" class="btn icon-btn" id="prev" data-i18n-title="ctl.back"><span class="icon i-step-back" aria-hidden="true"></span></button>
+                        <button type="button" class="btn outline" id="play"></button>
+                        <button type="button" class="btn icon-btn" id="next" data-i18n-title="ctl.fwd"><span class="icon i-step-fwd" aria-hidden="true"></span></button>
+                        <button type="button" class="btn icon-btn" id="last" data-i18n-title="ctl.end"><span class="icon i-skip-fwd" aria-hidden="true"></span></button>
+                        <input id="slider" type="range" min="0" max="0" value="0" style="flex:1;min-width:120px" />
+                        <span class="note" id="pos"></span>
+                    </div>
+                    <div class="row" style="margin-top:8px">
+                        <label style="margin:0"><span data-i18n="fig.label">Figura</span> <select id="figSel"><option value="both" data-i18n="fig.both"></option><option value="sys" data-i18n="fig.sys"></option><option value="fsm" data-i18n="fig.fsm"></option></select></label>
+                        <button type="button" class="btn outline" data-export="sistema" data-i18n="exp.sys">Exportar sistema (SVG)</button>
+                        <button type="button" class="btn outline" data-export="estados" data-i18n="exp.fsm">Exportar diagrama (SVG)</button>
+                    </div>
+                    <div class="figs"><div id="figSys"></div><div id="figFsm"></div></div>
+                </section>
+                <section style="margin-top:16px"><h2 data-i18n="steps.title">Passos</h2><div style="overflow-x:auto;max-height:420px;overflow-y:auto" id="stepsBox"><table id="steps"></table></div></section>
+                <div class="grid2">
+                    <section><h2 data-i18n="stats.title">Estatísticas</h2><table id="stats"></table></section>
+                    <section><h2><span data-i18n="cmp.title">Comparação dos protocolos</span> <span class="note" data-i18n="cmp.same">mesma sequência</span></h2><table id="compare"></table></section>
+                </div>
+            </div>
+        </main>
+        <script type="module" src="js/app.js"></script>
+    </body>
 </html>

@@ -12,6 +12,8 @@
  * invalidação da cópia derruba a reserva) ou quando o próprio núcleo executa sc.w.
  */
 
+import { t } from './i18n/index.js';
+
 const ABI = ['zero', 'ra', 'sp', 'gp', 'tp', 't0', 't1', 't2', 's0', 's1', 'a0', 'a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7',
     's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11', 't3', 't4', 't5', 't6'];
 const REG = Object.fromEntries([...ABI.map((n, i) => [n, i]), ...ABI.map((_, i) => [`x${i}`, i]), ['fp', 8]]);
@@ -27,8 +29,12 @@ const FORMS = {
     'amomax.w': 'rra', 'amomin.w': 'rra',
 };
 
+/** Mnemônicos aceitos (para o destaque de sintaxe do editor). */
+export const isMnemonic = (w) => w.toLowerCase().replace(/\.(aq|rl|aqrl)$/, '').replace(/\.(aq|rl)$/, '') in FORMS;
+export const isRegister = (w) => w.toLowerCase() in REG;
+
 /** Instruções que só existem no RV64 (operam com registradores de 64 bits): mensagem didática. */
-const RV64_ONLY = /^(ld|sd|lwu|addiw|addw|subw|slliw|srliw|sraiw|sllw|srlw|sraw|mulw|lr\.d|sc\.d|amo\w+\.d)$/;
+export const RV64_ONLY = /^(ld|sd|lwu|addiw|addw|subw|slliw|srliw|sraiw|sllw|srlw|sraw|mulw|lr\.d|sc\.d|amo\w+\.d)$/;
 
 function parseNum(t) {
     if (!/^-?(0x[0-9a-f]+|\d+)$/i.test(t)) return null;
@@ -62,55 +68,55 @@ export function assemble(src) {
         if (op === '.globl' || op === '.global' || op === '.section') return;
         if (section === 'data') {
             if (op === '.word') {
-                for (const t of argText.split(',').map((x) => x.trim()).filter(Boolean)) {
-                    const v = parseNum(t);
-                    if (v === null) { err(`valor inválido "${t}"`); return; }
+                for (const tok of argText.split(',').map((x) => x.trim()).filter(Boolean)) {
+                    const v = parseNum(tok);
+                    if (v === null) { err(t('asm.badValue', { t: tok })); return; }
                     data.set(dp, v | 0); dp += 4;
                 }
             } else if (op === '.space' || op === '.zero') {
                 const n = parseNum(argText.trim());
-                if (n === null || n < 0) { err('tamanho inválido'); return; }
+                if (n === null || n < 0) { err(t('asm.badSize')); return; }
                 dp += n;
             } else if (op === '.align' || op === '.balign') {
                 const n = parseNum(argText.trim());
-                if (n === null || n < 0) { err('alinhamento inválido'); return; }
+                if (n === null || n < 0) { err(t('asm.badAlign')); return; }
                 const a = op === '.align' ? 2 ** n : n;
                 dp = Math.ceil(dp / a) * a;
-            } else err(`diretiva desconhecida na seção .data: ${head}`);
+            } else err(t('asm.directive', { d: head }));
             dp = Math.ceil(dp / 4) * 4;
             return;
         }
         // Sufixos .aq e .rl das instruções atômicas só tratam da ordem da memória; aqui a ordem já é sequencial.
         const base = op.replace(/\.(aq|rl|aqrl)$/, '').replace(/\.(aq|rl)$/, '');
         if (RV64_ONLY.test(base)) {
-            err(`${base} existe só no RV64, porque opera com registradores de 64 bits; no RV32 use lw/sw (ou lr.w, sc.w e as AMOs com sufixo .w)`);
+            err(t('asm.rv64', { op: base }));
             return;
         }
         const form = FORMS[base];
-        if (form === undefined) { err(`instrução não suportada: ${head}`); return; }
+        if (form === undefined) { err(t('asm.unsupported', { op: head })); return; }
         const args = argText ? argText.split(',').map((x) => x.trim()) : [];
         // lw/sw aceitam "rd, imm(rs1)"; as atômicas, "rd, rs2, (rs1)" ou "rd, (rs1)".
-        if (args.length !== form.length) { err(`${base} espera ${form.length} operandos`); return; }
+        if (args.length !== form.length) { err(t('asm.operands', { op: base, n: form.length })); return; }
         const ops = [];
         for (let k = 0; k < form.length; k++) {
-            const f = form[k], t = args[k];
+            const f = form[k], tok = args[k];
             if (f === 'r') {
-                const r = REG[t.toLowerCase()];
-                if (r === undefined) { err(`registrador inválido "${t}"`); return; }
+                const r = REG[tok.toLowerCase()];
+                if (r === undefined) { err(t('asm.badReg', { t: tok })); return; }
                 ops.push(r);
             } else if (f === 'i') {
-                const v = parseNum(t);
-                if (v === null) { err(`imediato inválido "${t}"`); return; }
+                const v = parseNum(tok);
+                if (v === null) { err(t('asm.badImm', { t: tok })); return; }
                 ops.push(v);
             } else if (f === 'l' || f === 'd') {
-                ops.push(t);
+                ops.push(tok);
             } else if (f === 'c') {
-                if (t.toLowerCase() !== 'mhartid') { err('csrr só lê mhartid neste simulador'); return; }
-                ops.push(t);
+                if (tok.toLowerCase() !== 'mhartid') { err(t('asm.csrr')); return; }
+                ops.push(tok);
             } else {
-                const m = t.match(f === 'm' ? /^(-?(?:0x[0-9a-f]+|\d+))?\s*\(\s*(\w+)\s*\)$/i : /^(0)?\s*\(\s*(\w+)\s*\)$/i);
+                const m = tok.match(f === 'm' ? /^(-?(?:0x[0-9a-f]+|\d+))?\s*\(\s*(\w+)\s*\)$/i : /^(0)?\s*\(\s*(\w+)\s*\)$/i);
                 const r = m && REG[m[2].toLowerCase()];
-                if (r === undefined || r === null) { err(`endereço inválido "${t}" (use imm(reg)${f === 'a' ? ' ou (reg)' : ''})`); return; }
+                if (r === undefined || r === null) { err(t(f === 'a' ? 'asm.badAddrA' : 'asm.badAddr', { t: tok })); return; }
                 ops.push({ off: m[1] ? parseNum(m[1]) : 0, base: r });
             }
         }
@@ -121,8 +127,8 @@ export function assemble(src) {
     for (const ins of pending) {
         const form = FORMS[ins.op];
         for (let k = 0; k < form.length; k++) {
-            if (form[k] === 'l' && labels[ins.args[k]] === undefined) errors.push({ line: ins.line, text: ins.text, msg: `rótulo desconhecido "${ins.args[k]}"` });
-            if (form[k] === 'd' && dataLabels[ins.args[k]] === undefined && labels[ins.args[k]] === undefined) errors.push({ line: ins.line, text: ins.text, msg: `rótulo de dado desconhecido "${ins.args[k]}"` });
+            if (form[k] === 'l' && labels[ins.args[k]] === undefined) errors.push({ line: ins.line, text: ins.text, msg: t('asm.label', { l: ins.args[k] }) });
+            if (form[k] === 'd' && dataLabels[ins.args[k]] === undefined && labels[ins.args[k]] === undefined) errors.push({ line: ins.line, text: ins.text, msg: t('asm.dataLabel', { l: ins.args[k] }) });
         }
     }
     return { code, data, labels, dataLabels, errors };
@@ -172,8 +178,8 @@ export function runPrograms(prog, cfg) {
         const addrOf = (m) => (x[m.base] + m.off) | 0;
         const mops = { core: c, text: ins.text, line: ins.line, pc: s.pc * 4 };
         let next = s.pc + 1;
-        const fail = (msg) => { s.done = true; s.status = 'erro'; s.error = `linha ${ins.line}: ${msg}`; };
-        const aligned = (addr) => { if (addr % 4 !== 0 || addr < 0) { fail(`endereço 0x${(addr >>> 0).toString(16)} desalinhado (palavras de 4 bytes)`); return false; } return true; };
+        const fail = (msg) => { s.done = true; s.status = 'erro'; s.error = { line: ins.line, msg }; };
+        const aligned = (addr) => { if (addr % 4 !== 0 || addr < 0) { fail(t('run.misaligned', { a: `0x${(addr >>> 0).toString(16)}` })); return false; } return true; };
         s.instrs++;
         switch (ins.op) {
             case 'add': set(a[0], x[a[1]] + x[a[2]]); break;

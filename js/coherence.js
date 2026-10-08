@@ -11,6 +11,8 @@
  * no MOESI, o dono (M ou O) envia o bloco sem escrever na memória.
  */
 
+import { t } from './i18n/index.js';
+
 export const PROTOCOLS = ['msi', 'mesi', 'moesi'];
 
 /** Lê a sequência de acessos: uma linha por acesso, "P0 R 0x10" ou "1 w 16"; # inicia comentário. */
@@ -104,10 +106,10 @@ export function simulate(ops, cfg) {
 /** Tabela LaTeX dos passos (cabeçalho tabAzul, \hline, sem booktabs). */
 export function latexTable(steps, cfg) {
     const hx = (n) => `0x${n.toString(16)}`;
-    const head = ['\\#', 'Acesso', 'Bloco', 'Resultado', 'Barramento', 'Dados de', ...Array.from({ length: cfg.cores }, (_, c) => `P${c}`)];
-    const rows = steps.map((s, i) => [i + 1, s.text ? `P${s.core}: \\texttt{${s.text}}` : `P${s.core} ${s.kind === 'R' ? 'lê' : 'escreve'} ${hx(s.addr)}`, s.block, s.hit === null ? 'sem acesso' : s.hit ? 'acerto' : 'falha', s.bus ?? '-', s.from ?? '-', ...s.after].join(' & ') + ' \\\\ \\hline');
+    const head = ['\\#', t('tex.access'), t('tex.block'), t('tex.result'), t('tex.bus'), t('tex.from'), ...Array.from({ length: cfg.cores }, (_, c) => `P${c}`)];
+    const rows = steps.map((s, i) => [i + 1, s.text ? `P${s.core}: \\texttt{${s.text}}` : `P${s.core} ${t(s.kind === 'R' ? 'acc.read' : 'acc.write')} ${hx(s.addr)}`, s.block, s.hit === null ? t('tex.noAccess') : t(s.hit ? 'res.hit' : 'res.miss'), s.bus ?? '-', s.from === 'mem' ? t('from.mem') : s.from ?? '-', ...s.after].join(' & ') + ' \\\\ \\hline');
     return ['% Requer \\usepackage[table]{xcolor}; tabAzul definida abaixo se ainda não existir.', '\\providecolor{tabAzul}{HTML}{1F4E79}',
         '\\begin{table}[htbp]', '\\centering', `\\begin{tabular}{|${'c|'.repeat(head.length)}}`, '\\hline',
         `\\rowcolor{tabAzul}${head.map((h) => `\\color{white}\\textbf{${h}}`).join(' & ')} \\\\ \\hline`, ...rows,
-        '\\end{tabular}', `\\caption{Protocolo ${cfg.protocol.toUpperCase()} com ${cfg.cores} núcleos e blocos de ${cfg.blockSize} bytes.}`, '\\end{table}', ''].join('\n');
+        '\\end{tabular}', `\\caption{${t('tex.caption', { p: cfg.protocol.toUpperCase(), n: cfg.cores, b: cfg.blockSize })}}`, '\\end{table}', ''].join('\n');
 }
