@@ -43,9 +43,15 @@ export function simulate(ops, cfg) {
     const stateOf = (c, block) => { const l = caches[c][block % lines]; return l.block === block ? l.state : 'I'; };
     const setState = (c, block, state) => { caches[c][block % lines] = { block: state === 'I' && caches[c][block % lines].block !== block ? caches[c][block % lines].block : block, state }; };
     const steps = [];
+    const snapshot = () => caches.map((c) => c.map((l) => ({ ...l })));
     for (const op of ops) {
         const block = Math.floor(op.addr / blockSize);
         const before = Array.from({ length: cores }, (_, c) => stateOf(c, block));
+        // Instrução sem acesso à memória (por exemplo, sc.w que falhou): registrada, sem mudar nada.
+        if (op.kind === 'N') {
+            steps.push({ ...op, block, word: op.addr % blockSize, hit: null, bus: null, from: null, wb: null, notes: [], before, after: [...before], caches: snapshot() });
+            continue;
+        }
         const notes = [];
         let bus = null, from = null, wb = null;
         const me = op.core;
@@ -89,7 +95,7 @@ export function simulate(ops, cfg) {
         }
         if (bus) stats.bus[bus]++;
         const after = Array.from({ length: cores }, (_, c) => stateOf(c, block));
-        steps.push({ ...op, block, word: op.addr % blockSize, hit, bus, from, wb, notes, before, after });
+        steps.push({ ...op, block, word: op.addr % blockSize, hit, bus, from, wb, notes, before, after, caches: snapshot() });
     }
     stats.busTotal = stats.bus.BusRd + stats.bus.BusRdX + stats.bus.BusUpgr;
     return { steps, stats };
@@ -99,7 +105,7 @@ export function simulate(ops, cfg) {
 export function latexTable(steps, cfg) {
     const hx = (n) => `0x${n.toString(16)}`;
     const head = ['\\#', 'Acesso', 'Bloco', 'Resultado', 'Barramento', 'Dados de', ...Array.from({ length: cfg.cores }, (_, c) => `P${c}`)];
-    const rows = steps.map((s, i) => [i + 1, `P${s.core} ${s.kind === 'R' ? 'lê' : 'escreve'} ${hx(s.addr)}`, s.block, s.hit ? 'acerto' : 'falha', s.bus ?? '-', s.from ?? '-', ...s.after].join(' & ') + ' \\\\ \\hline');
+    const rows = steps.map((s, i) => [i + 1, s.text ? `P${s.core}: \\texttt{${s.text}}` : `P${s.core} ${s.kind === 'R' ? 'lê' : 'escreve'} ${hx(s.addr)}`, s.block, s.hit === null ? 'sem acesso' : s.hit ? 'acerto' : 'falha', s.bus ?? '-', s.from ?? '-', ...s.after].join(' & ') + ' \\\\ \\hline');
     return ['% Requer \\usepackage[table]{xcolor}; tabAzul definida abaixo se ainda não existir.', '\\providecolor{tabAzul}{HTML}{1F4E79}',
         '\\begin{table}[htbp]', '\\centering', `\\begin{tabular}{|${'c|'.repeat(head.length)}}`, '\\hline',
         `\\rowcolor{tabAzul}${head.map((h) => `\\color{white}\\textbf{${h}}`).join(' & ')} \\\\ \\hline`, ...rows,
